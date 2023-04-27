@@ -613,6 +613,7 @@ class TerminalMenu:
         preview_command: Optional[Union[str, Callable[[str], str]]] = None,
         preview_size: float = DEFAULT_PREVIEW_SIZE,
         preview_title: str = DEFAULT_PREVIEW_TITLE,
+        print_entry_fn: Callable[[str], Any] = None,
         quit_keys: Iterable[str] = DEFAULT_QUIT_KEYS,
         raise_error_on_interrupt: bool = False,
         search_case_sensitive: bool = DEFAULT_SEARCH_CASE_SENSITIVE,
@@ -632,6 +633,13 @@ class TerminalMenu:
         status_bar_style: Optional[Iterable[str]] = DEFAULT_STATUS_BAR_STYLE,
         title: Optional[Union[str, Iterable[str]]] = None
     ):
+        if print_entry_fn is not None:
+            padding = 2
+            if multi_select:
+                padding = 3
+            padding_spaces = padding * '  '
+            _menu_entries = [padding_spaces + m for m in menu_entries]
+            menu_entries = _menu_entries
         def extract_shortcuts_menu_entries_and_preview_arguments(
             entries: Iterable[str],
         ) -> Tuple[List[str], List[Optional[str]], List[Optional[str]], List[int]]:
@@ -749,6 +757,7 @@ class TerminalMenu:
         self._preview_command = preview_command
         self._preview_size = preview_size
         self._preview_title = preview_title
+        self._print_entry_fn = print_entry_fn
         self._quit_keys = tuple(quit_keys)
         self._raise_error_on_interrupt = raise_error_on_interrupt
         self._search_case_sensitive = search_case_sensitive
@@ -1094,7 +1103,11 @@ class TerminalMenu:
                         menu_entry[match_obj.end() : num_cols - all_cursors_width - shortcut_string_len]
                     )
                 else:
-                    self._tty_out.write(menu_entry[: num_cols - all_cursors_width - shortcut_string_len])
+                    to_write = menu_entry[: num_cols - all_cursors_width - shortcut_string_len]
+                    if self._print_entry_fn is not None:
+                        self._print_entry_fn(to_write)
+                    else:
+                        self._tty_out.write(to_write)
                 if menu_index == self._view.active_menu_index:
                     apply_style()
                 self._tty_out.write((num_cols - wcswidth(menu_entry) - all_cursors_width - shortcut_string_len) * " ")
@@ -1338,6 +1351,7 @@ class TerminalMenu:
             cursor_width = wcswidth(self._menu_cursor)
             for displayed_index in range(self._viewport.lower_index, self._viewport.upper_index + 1):
                 if displayed_index == self._view.active_displayed_index:
+                    pass
                     apply_style(self._menu_cursor_style)
                     self._tty_out.write(self._menu_cursor)
                     apply_style()
